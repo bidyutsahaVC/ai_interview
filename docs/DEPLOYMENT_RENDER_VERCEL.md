@@ -149,6 +149,14 @@ After deploying frontend, update `FRONTEND_URL` in Render:
    git push
    ```
 
+
+
+
+
+
+
+   
+
 ### Step 2: Create Vercel Account
 
 1. Go to https://vercel.com
