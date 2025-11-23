@@ -21,28 +21,49 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 // CORS configuration - allow frontend origin from environment or default to localhost
 const allowedOrigins = process.env.FRONTEND_URL 
-  ? process.env.FRONTEND_URL.split(',')
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
   : ['http://localhost:3000'];
+
+console.log('[Server] Allowed CORS origins:', allowedOrigins);
+console.log('[Server] NODE_ENV:', process.env.NODE_ENV);
 
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1 || process.env.NODE_ENV !== 'production') {
+    if (!origin) {
+      console.log('[Server] Request with no origin - allowing');
+      return callback(null, true);
+    }
+    
+    // Check if origin is in allowed list (normalize by removing trailing slashes)
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      const normalizedOrigin = origin.replace(/\/$/, '');
+      const normalizedAllowed = allowedOrigin.replace(/\/$/, '');
+      return normalizedOrigin === normalizedAllowed;
+    });
+    
+    if (isAllowed || process.env.NODE_ENV !== 'production') {
+      console.log('[Server] CORS: Allowing origin:', origin);
       callback(null, true);
     } else {
+      console.log('[Server] CORS: Blocking origin:', origin);
+      console.log('[Server] CORS: Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Length', 'Content-Type']
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Rate limiting
+// Rate limiting - skip for OPTIONS requests (preflight)
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  max: 100, // limit each IP to 100 requests per windowMs
+  skip: (req) => req.method === 'OPTIONS' // Skip rate limiting for preflight requests
 });
 app.use('/api/', limiter);
 
